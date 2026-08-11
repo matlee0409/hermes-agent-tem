@@ -1,6 +1,6 @@
-# Hermes Agent — Admin Dashboard
+# Bookings Admin — Hermes Agent Workspace
 
-A Python admin server (Starlette + Uvicorn) that manages [Hermes Agent](https://github.com/NousResearch/hermes-agent) — an autonomous AI agent by Nous Research — with a dark-themed web dashboard.
+A Python admin server (Starlette + Uvicorn) for a business owner's booking workspace, with [Hermes Agent](https://github.com/NousResearch/hermes-agent) operating as the conversational booking agent.
 
 ## How to Run
 
@@ -26,19 +26,32 @@ The server manages two subprocesses:
 - `hermes gateway` — the AI agent (started after configuration)
 - `hermes dashboard` — the native Hermes web UI (always started)
 
-Config is stored in `$HERMES_HOME/.env` and `$HERMES_HOME/config.yaml` (defaults to `~/.hermes/`).
+Config is stored in `$HERMES_HOME/.env` and `$HERMES_HOME/config.yaml` (defaults to `~/.hermes/`). Booking data is stored in `$HERMES_HOME/bookings.json`.
 
-## Dashboard Sections
+## Booking Workspace
 
-| Section   | Description |
-|-----------|-------------|
-| Setup     | Configure LLM provider, messaging channels, tools |
-| Status    | Gateway state, uptime, providers/channels overview |
-| Logs      | Streaming gateway log viewer |
-| **Terminal** | **Full interactive shell — run hermes commands, inspect files, etc.** |
-| Users     | Approve/deny/revoke pairing requests |
-| Backup    | GitHub-based data backup and restore |
-| Update    | Check and apply Hermes Agent updates |
+| Section | Description |
+|---|---|
+| Overview | Today's schedule, booking totals, customer count, and agent connection |
+| Bookings | Create, edit, filter, and cancel appointments |
+| Customers | Customer rollups based on booking contact details |
+| Business settings | Business profile, hours, and instructions for the booking agent |
+
+Bookings are stored beside Hermes' existing data and are exposed through the protected `/setup/api/bookings` and `/setup/api/business` endpoints for a future Hermes booking skill or channel integration.
+
+## Agent Operations
+
+The existing Hermes controls remain available under Agent operations:
+
+| Section | Description |
+|---|---|
+| Agent setup | Configure LLM providers, messaging channels, and tools |
+| Agent status | Gateway state, uptime, providers/channels overview |
+| Agent logs | Streaming gateway log viewer |
+| Terminal | Full interactive shell — run hermes commands and inspect files |
+| Agent users | Approve/deny/revoke pairing requests |
+| Backup | GitHub-based data backup and restore |
+| Update | Check and apply Hermes Agent updates |
 
 ## Terminal Feature
 

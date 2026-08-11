@@ -1,1 +1,2 @@
 - [Git-based data import/restore secret safety](git-import-secret-safety.md) — destructive git reset/clean during a repo import can silently overwrite or delete local secret files; ignore rules alone are not enough.
+- [Imported Railway templates on Replit](replit-import-runtime.md) — install declared Python packages with Replit's package manager; container-only binaries may be unavailable in the preview runtime.

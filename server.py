@@ -39,6 +39,7 @@ import signal
 import struct
 import termios
 import time
+from datetime import datetime, timezone
 from collections import deque
 from contextlib import asynccontextmanager
 from pathlib import Path, PurePosixPath
@@ -64,6 +65,7 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 HERMES_HOME = os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))
 ENV_FILE = Path(HERMES_HOME) / ".env"
 PAIRING_DIR = Path(HERMES_HOME) / "pairing"
+BOOKINGS_FILE = Path(HERMES_HOME) / "bookings.json"
 PAIRING_TTL = 3600
 
 # The upstream git ref this image was built against (baked in as a build ARG
@@ -678,7 +680,7 @@ def guard(request: Request) -> Response | None:
 LOGIN_PAGE_HTML = """<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Hermes Agent — Sign in</title>
+<title>Bookings Admin — Sign in</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -708,8 +710,8 @@ button:hover{background:#7b8fff;border-color:#7b8fff}
 <body>
 <div class="card">
   <div class="brand">
-    <div class="brand-logo">hermes<span>/admin</span></div>
-    <div class="brand-sub">Sign in to continue</div>
+    <div class="brand-logo">bookings<span>/admin</span></div>
+    <div class="brand-sub">Owner workspace</div>
   </div>
   __ERROR__
   <form method="POST" action="/login">
@@ -938,6 +940,185 @@ class Gateway:
 
 gw = Gateway()
 cfg_lock = asyncio.Lock()
+
+
+# ── Booking store ────────────────────────────────────────────────────────────
+# Bookings intentionally live beside Hermes' existing data so they persist on
+# the same volume and are included by the existing backup flow.
+def _booking_store() -> dict:
+    try:
+        if BOOKINGS_FILE.exists():
+            data = json.loads(BOOKINGS_FILE.read_text())
+            if isinstance(data, dict):
+                data.setdefault("business", {})
+                data.setdefault("bookings", [])
+                return data
+    except Exception as e:
+        print(f"[bookings] could not read store: {e!r}", flush=True)
+    return {"business": {}, "bookings": []}
+
+
+def _write_booking_store(data: dict) -> None:
+    BOOKINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = BOOKINGS_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    tmp.replace(BOOKINGS_FILE)
+    try:
+        os.chmod(BOOKINGS_FILE, 0o600)
+    except OSError:
+        pass
+
+
+def _booking_id() -> str:
+    return f"bk_{secrets.token_hex(6)}"
+
+
+def _booking_payload(body: dict, existing: dict | None = None) -> dict:
+    allowed = ("customer_name", "customer_email", "customer_phone", "service",
+               "date", "time", "duration", "status", "notes", "source")
+    result = dict(existing or {})
+    for key in allowed:
+        if key in body:
+            result[key] = str(body.get(key) or "").strip()
+    result.setdefault("duration", "60")
+    result.setdefault("status", "confirmed")
+    result.setdefault("source", "dashboard")
+    return result
+
+
+def _booking_error(data: dict) -> str:
+    required = {
+        "customer_name": "Customer name",
+        "service": "Service",
+        "date": "Date",
+        "time": "Time",
+    }
+    for key, label in required.items():
+        if not data.get(key):
+            return f"{label} is required"
+    try:
+        datetime.strptime(f"{data['date']} {data['time']}", "%Y-%m-%d %H:%M")
+    except ValueError:
+        return "Date and time must use YYYY-MM-DD and HH:MM"
+    if data.get("status") not in ("confirmed", "pending", "cancelled", "completed"):
+        return "Invalid booking status"
+    try:
+        if int(data.get("duration", "60")) <= 0:
+            return "Duration must be greater than zero"
+    except ValueError:
+        return "Duration must be a number of minutes"
+    return ""
+
+
+async def api_bookings_get(request: Request):
+    if err := guard(request):
+        return err
+    async with cfg_lock:
+        data = _booking_store()
+    bookings = data["bookings"]
+    date = request.query_params.get("date", "")
+    status = request.query_params.get("status", "")
+    if date:
+        bookings = [b for b in bookings if b.get("date") == date]
+    if status:
+        bookings = [b for b in bookings if b.get("status") == status]
+    bookings.sort(key=lambda b: (b.get("date", ""), b.get("time", "")))
+    today = datetime.now(timezone.utc).date().isoformat()
+    active = [b for b in data["bookings"] if b.get("status") != "cancelled"]
+    return JSONResponse({
+        "bookings": bookings,
+        "today": today,
+        "stats": {
+            "today": sum(1 for b in active if b.get("date") == today),
+            "upcoming": sum(1 for b in active if b.get("date", "") >= today),
+            "pending": sum(1 for b in data["bookings"] if b.get("status") == "pending"),
+            "customers": len({b.get("customer_email") or b.get("customer_phone") or b.get("customer_name") for b in active}),
+        },
+        "business": data.get("business", {}),
+    })
+
+
+async def api_booking_create(request: Request):
+    if err := guard(request):
+        return err
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+    booking = _booking_payload(body if isinstance(body, dict) else {})
+    if error := _booking_error(booking):
+        return JSONResponse({"error": error}, status_code=400)
+    booking["id"] = _booking_id()
+    booking["created_at"] = time.time()
+    async with cfg_lock:
+        data = _booking_store()
+        data["bookings"].append(booking)
+        _write_booking_store(data)
+    return JSONResponse({"ok": True, "booking": booking}, status_code=201)
+
+
+async def api_booking_update(request: Request):
+    if err := guard(request):
+        return err
+    booking_id = request.path_params["booking_id"]
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+    async with cfg_lock:
+        data = _booking_store()
+        current = next((b for b in data["bookings"] if b.get("id") == booking_id), None)
+        if not current:
+            return JSONResponse({"error": "Booking not found"}, status_code=404)
+        updated = _booking_payload(body if isinstance(body, dict) else {}, current)
+        if error := _booking_error(updated):
+            return JSONResponse({"error": error}, status_code=400)
+        current.update(updated)
+        current["updated_at"] = time.time()
+        _write_booking_store(data)
+    return JSONResponse({"ok": True, "booking": current})
+
+
+async def api_booking_delete(request: Request):
+    if err := guard(request):
+        return err
+    booking_id = request.path_params["booking_id"]
+    async with cfg_lock:
+        data = _booking_store()
+        current = next((b for b in data["bookings"] if b.get("id") == booking_id), None)
+        if not current:
+            return JSONResponse({"error": "Booking not found"}, status_code=404)
+        current["status"] = "cancelled"
+        current["updated_at"] = time.time()
+        _write_booking_store(data)
+    return JSONResponse({"ok": True, "booking": current})
+
+
+async def api_business_get(request: Request):
+    if err := guard(request):
+        return err
+    async with cfg_lock:
+        return JSONResponse({"business": _booking_store().get("business", {})})
+
+
+async def api_business_put(request: Request):
+    if err := guard(request):
+        return err
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+    if not isinstance(body, dict):
+        return JSONResponse({"error": "Invalid business settings"}, status_code=400)
+    allowed = ("name", "type", "timezone", "hours", "address", "phone", "email", "booking_instructions")
+    async with cfg_lock:
+        data = _booking_store()
+        business = data.setdefault("business", {})
+        for key in allowed:
+            if key in body:
+                business[key] = str(body.get(key) or "").strip()
+        _write_booking_store(data)
+    return JSONResponse({"ok": True, "business": business})
 
 
 # ── GitHub data backup ─────────────────────────────────────────────────────────
@@ -2320,6 +2501,12 @@ routes = [
     Route("/setup/",                            page_index),
     Route("/setup/api/config",                  api_config_get,      methods=["GET"]),
     Route("/setup/api/config",                  api_config_put,      methods=["PUT"]),
+    Route("/setup/api/bookings",                api_bookings_get),
+    Route("/setup/api/bookings",                api_booking_create,  methods=["POST"]),
+    Route("/setup/api/bookings/{booking_id}",   api_booking_update,  methods=["PUT"]),
+    Route("/setup/api/bookings/{booking_id}",   api_booking_delete,  methods=["DELETE"]),
+    Route("/setup/api/business",                api_business_get),
+    Route("/setup/api/business",                api_business_put,    methods=["PUT"]),
     Route("/setup/api/status",                  api_status),
     Route("/setup/api/logs",                    api_logs),
     Route("/setup/api/gateway/start",           api_gw_start,        methods=["POST"]),
