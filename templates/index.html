@@ -794,11 +794,6 @@
     </div>
 
     <div class="nav-group-label" style="margin-top:8px">Agent operations</div>
-    <div class="nav-item highlight"
-         @click="window.location.href='/?force=1'"
-         title="Open the native Hermes dashboard">
-      <span class="nav-icon">✦</span><span>Open Hermes</span><span class="nav-arrow">→</span>
-    </div>
     <div class="nav-item"
          :class="{active: page==='status', locked: !isSetupDone}"
          @click="isSetupDone && (page='status')">
