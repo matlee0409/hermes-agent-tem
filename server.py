@@ -188,7 +188,8 @@ CHANNEL_MAP  = {
     "Matrix":      "MATRIX_ACCESS_TOKEN",
 }
 ZERNIO_API_URL = "https://zernio.com/api"
-_zernio_whatsapp_state: str | None = None
+ZERNIO_CONNECT_TTL = 10 * 60
+_zernio_whatsapp_state: dict[str, str | float] | None = None
 
 
 # ── .env helpers ──────────────────────────────────────────────────────────────
@@ -1684,28 +1685,38 @@ async def api_zernio_whatsapp_start(request: Request):
     if not api_key or not profile_id:
         return JSONResponse({"error": "Save a Zernio API key and profile ID before connecting."}, status_code=400)
 
-    callback_url = str(request.url_for("api_zernio_whatsapp_callback"))
+    nonce = secrets.token_urlsafe(32)
+    callback_url = f"{str(request.url_for('api_zernio_whatsapp_callback')).replace('http://', 'https://')}?nonce={nonce}"
     response = await get_http_client().get(
         f"{ZERNIO_API_URL}/v1/connect/whatsapp",
         params={"profileId": profile_id, "redirect_url": callback_url},
         headers={"Authorization": f"Bearer {api_key}"},
     )
     if response.status_code != 200:
-        return JSONResponse({"error": "Zernio could not start the WhatsApp connection."}, status_code=502)
+        try:
+            detail = response.json().get("error", "")
+        except (TypeError, ValueError):
+            detail = ""
+        return JSONResponse({"error": detail or "Zernio could not start the WhatsApp connection."}, status_code=502)
     try:
         result = response.json()
-        _zernio_whatsapp_state = str(result["state"])
         auth_url = str(result["authUrl"])
     except (KeyError, TypeError, ValueError):
         return JSONResponse({"error": "Zernio returned an invalid connection response."}, status_code=502)
+    _zernio_whatsapp_state = {"nonce": nonce, "expires_at": time.time() + ZERNIO_CONNECT_TTL}
     return JSONResponse({"auth_url": auth_url})
 
 
 async def api_zernio_whatsapp_callback(request: Request):
     global _zernio_whatsapp_state
-    state = request.query_params.get("state", "")
-    if not _zernio_whatsapp_state or state != _zernio_whatsapp_state:
-        return HTMLResponse("<p>Unable to verify the Zernio connection. Return to setup and try again.</p>", status_code=400)
+    nonce = request.query_params.get("nonce", "")
+    if (
+        not _zernio_whatsapp_state
+        or time.time() > float(_zernio_whatsapp_state["expires_at"])
+        or not _hmac.compare_digest(nonce, str(_zernio_whatsapp_state["nonce"]))
+    ):
+        _zernio_whatsapp_state = None
+        return HTMLResponse("<p>This Zernio connection link is invalid or expired. Return to setup and try again.</p>", status_code=400)
     if request.query_params.get("connected") != "whatsapp":
         return HTMLResponse("<p>WhatsApp was not connected. Return to setup and try again.</p>", status_code=400)
 
@@ -1717,7 +1728,7 @@ async def api_zernio_whatsapp_callback(request: Request):
         data["ZERNIO_WHATSAPP_NUMBER"] = request.query_params.get("username", "")
         write_env(ENV_FILE, data)
     _zernio_whatsapp_state = None
-    return HTMLResponse("<p>WhatsApp connected through Zernio. You can close this window and return to setup.</p>")
+    return HTMLResponse("<p>WhatsApp is connected in Zernio. You can close this window and return to setup.</p>")
 
 
 async def api_config_get(request: Request):
@@ -1741,6 +1752,8 @@ async def api_config_put(request: Request):
         async with cfg_lock:
             existing = read_env(ENV_FILE)
             merged = unmask(new_vars, existing)
+            if merged.get("WHATSAPP_PROVIDER") == "zernio":
+                merged["WHATSAPP_ENABLED"] = "false"
             for k, v in existing.items():
                 if k not in merged:
                     merged[k] = v
@@ -1778,11 +1791,6 @@ async def api_status(request: Request):
     channels = {
         name: {"configured": bool(v := data.get(key,"")) and v.lower() not in ("false","0","no")}
         for name, key in CHANNEL_MAP.items()
-    }
-    channels["WhatsApp"] = {
-        "configured": data.get("WHATSAPP_PROVIDER") == "zernio"
-        and bool(data.get("ZERNIO_WHATSAPP_ACCOUNT_ID"))
-        or channels["WhatsApp"]["configured"],
     }
     return JSONResponse({"gateway": gw.status(), "providers": providers, "channels": channels})
 
