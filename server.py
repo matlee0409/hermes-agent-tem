@@ -149,6 +149,11 @@ ENV_VARS = [
     ("SLACK_BOT_TOKEN",          "Bot Token (xoxb-...)",     "slack",     True),
     ("SLACK_APP_TOKEN",          "App Token (xapp-...)",     "slack",     True),
     ("WHATSAPP_ENABLED",         "Enable WhatsApp",          "whatsapp",  False),
+    ("WHATSAPP_PROVIDER",        "WhatsApp provider",        "whatsapp",  False),
+    ("ZERNIO_API_KEY",           "Zernio API key",           "zernio_whatsapp", True),
+    ("ZERNIO_PROFILE_ID",        "Zernio profile ID",        "zernio_whatsapp", False),
+    ("ZERNIO_WHATSAPP_ACCOUNT_ID", "Zernio WhatsApp account ID", "zernio_whatsapp", False),
+    ("ZERNIO_WHATSAPP_NUMBER",  "Zernio WhatsApp number",   "zernio_whatsapp", False),
     ("EMAIL_ADDRESS",            "Email Address",            "email",     False),
     ("EMAIL_PASSWORD",           "Email Password",           "email",     True),
     ("EMAIL_IMAP_HOST",          "IMAP Host",                "email",     False),
@@ -182,6 +187,8 @@ CHANNEL_MAP  = {
     "Mattermost":  "MATTERMOST_TOKEN",
     "Matrix":      "MATRIX_ACCESS_TOKEN",
 }
+ZERNIO_API_URL = "https://zernio.com/api"
+_zernio_whatsapp_state: str | None = None
 
 
 # ── .env helpers ──────────────────────────────────────────────────────────────
@@ -280,14 +287,14 @@ def write_config_yaml(data: dict[str, str]) -> None:
 def write_env(path: Path, data: dict[str, str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     cat_order = ["model", "provider", "bedrock", "azure", "custom", "tool",
-                 "telegram", "discord", "slack", "whatsapp",
+                 "telegram", "discord", "slack", "whatsapp", "zernio_whatsapp",
                  "email", "mattermost", "matrix", "gateway", "admin", "backup"]
     cat_labels = {
         "model": "Model", "provider": "Providers",
         "bedrock": "AWS Bedrock", "azure": "Azure Foundry",
         "custom": "Custom Endpoint", "tool": "Tools",
         "telegram": "Telegram", "discord": "Discord", "slack": "Slack",
-        "whatsapp": "WhatsApp", "email": "Email",
+        "whatsapp": "WhatsApp", "zernio_whatsapp": "Zernio WhatsApp", "email": "Email",
         "mattermost": "Mattermost", "matrix": "Matrix", "gateway": "Gateway",
         "admin": "Admin", "backup": "GitHub Backup",
     }
@@ -1668,6 +1675,51 @@ async def route_health(request: Request):
     return JSONResponse({"status": "ok", "gateway": gw.state})
 
 
+async def api_zernio_whatsapp_start(request: Request):
+    global _zernio_whatsapp_state
+    if err := guard(request): return err
+    data = read_env(ENV_FILE)
+    api_key = data.get("ZERNIO_API_KEY", "")
+    profile_id = data.get("ZERNIO_PROFILE_ID", "")
+    if not api_key or not profile_id:
+        return JSONResponse({"error": "Save a Zernio API key and profile ID before connecting."}, status_code=400)
+
+    callback_url = str(request.url_for("api_zernio_whatsapp_callback"))
+    response = await get_http_client().get(
+        f"{ZERNIO_API_URL}/v1/connect/whatsapp",
+        params={"profileId": profile_id, "redirect_url": callback_url},
+        headers={"Authorization": f"Bearer {api_key}"},
+    )
+    if response.status_code != 200:
+        return JSONResponse({"error": "Zernio could not start the WhatsApp connection."}, status_code=502)
+    try:
+        result = response.json()
+        _zernio_whatsapp_state = str(result["state"])
+        auth_url = str(result["authUrl"])
+    except (KeyError, TypeError, ValueError):
+        return JSONResponse({"error": "Zernio returned an invalid connection response."}, status_code=502)
+    return JSONResponse({"auth_url": auth_url})
+
+
+async def api_zernio_whatsapp_callback(request: Request):
+    global _zernio_whatsapp_state
+    state = request.query_params.get("state", "")
+    if not _zernio_whatsapp_state or state != _zernio_whatsapp_state:
+        return HTMLResponse("<p>Unable to verify the Zernio connection. Return to setup and try again.</p>", status_code=400)
+    if request.query_params.get("connected") != "whatsapp":
+        return HTMLResponse("<p>WhatsApp was not connected. Return to setup and try again.</p>", status_code=400)
+
+    async with cfg_lock:
+        data = read_env(ENV_FILE)
+        data["WHATSAPP_ENABLED"] = "false"
+        data["WHATSAPP_PROVIDER"] = "zernio"
+        data["ZERNIO_WHATSAPP_ACCOUNT_ID"] = request.query_params.get("accountId", "")
+        data["ZERNIO_WHATSAPP_NUMBER"] = request.query_params.get("username", "")
+        write_env(ENV_FILE, data)
+    _zernio_whatsapp_state = None
+    return HTMLResponse("<p>WhatsApp connected through Zernio. You can close this window and return to setup.</p>")
+
+
 async def api_config_get(request: Request):
     if err := guard(request): return err
     async with cfg_lock:
@@ -1726,6 +1778,11 @@ async def api_status(request: Request):
     channels = {
         name: {"configured": bool(v := data.get(key,"")) and v.lower() not in ("false","0","no")}
         for name, key in CHANNEL_MAP.items()
+    }
+    channels["WhatsApp"] = {
+        "configured": data.get("WHATSAPP_PROVIDER") == "zernio"
+        and bool(data.get("ZERNIO_WHATSAPP_ACCOUNT_ID"))
+        or channels["WhatsApp"]["configured"],
     }
     return JSONResponse({"gateway": gw.status(), "providers": providers, "channels": channels})
 
@@ -2362,6 +2419,8 @@ routes = [
     Route("/setup/api/oauth/xai/start",         api_oauth_xai_start,  methods=["POST"]),
     Route("/setup/api/oauth/xai/status",        api_oauth_xai_status),
     Route("/setup/api/oauth/xai",               api_oauth_xai_delete, methods=["DELETE"]),
+    Route("/setup/api/zernio/whatsapp/start",    api_zernio_whatsapp_start, methods=["POST"]),
+    Route("/setup/zernio/whatsapp/callback",     api_zernio_whatsapp_callback, name="api_zernio_whatsapp_callback"),
 
 
     # /setup/* typos return a real 404 — not a silent proxy fallthrough.
