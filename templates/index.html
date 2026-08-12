@@ -1169,11 +1169,16 @@
           </div>
 
           <!-- WhatsApp -->
-          <div class="toggle-row" style="border-bottom:none;" @click="channelsEnabled.whatsapp=!channelsEnabled.whatsapp; vars.WHATSAPP_ENABLED=channelsEnabled.whatsapp?'true':'false'">
-            <input type="checkbox" :checked="channelsEnabled.whatsapp" @click.stop @change="channelsEnabled.whatsapp=$event.target.checked; vars.WHATSAPP_ENABLED=$event.target.checked?'true':'false'">
+          <div class="toggle-row" style="border-bottom:none;" @click="channelsEnabled.whatsapp=!channelsEnabled.whatsapp; vars.WHATSAPP_ENABLED=channelsEnabled.whatsapp?'true':'false'; if(channelsEnabled.whatsapp) vars.WHATSAPP_PROVIDER='zernio'; else clearChannel('whatsapp')">
+            <input type="checkbox" :checked="channelsEnabled.whatsapp" @click.stop @change="channelsEnabled.whatsapp=$event.target.checked; vars.WHATSAPP_ENABLED=$event.target.checked?'true':'false'; if($event.target.checked) vars.WHATSAPP_PROVIDER='zernio'; else clearChannel('whatsapp')">
             <span class="toggle-icon">💬</span>
             <span class="toggle-label">WhatsApp</span>
-            <span style="font-size:11px;color:var(--text-dim);margin-left:8px;">pairing via gateway logs on first run</span>
+          </div>
+          <div class="toggle-body" x-show="channelsEnabled.whatsapp">
+            <div><label class="field-label">Zernio API Key</label><input type="password" :value="vars.ZERNIO_API_KEY||''" @input="vars.ZERNIO_API_KEY=$event.target.value" placeholder="Zernio API key"></div>
+            <div class="field-gap"><label class="field-label">Zernio Profile ID</label><input type="text" :value="vars.ZERNIO_PROFILE_ID||''" @input="vars.ZERNIO_PROFILE_ID=$event.target.value" placeholder="Profile ID"></div>
+            <p class="hint field-gap">Connected number: <span x-text="vars.ZERNIO_WHATSAPP_NUMBER || 'Not connected'"></span></p>
+            <button class="btn primary field-gap" @click="connectZernioWhatsApp()" :disabled="zernioConnecting"><span x-show="!zernioConnecting">Connect with Zernio</span><span x-show="zernioConnecting">Connecting…</span></button>
           </div>
 
         </div>
@@ -1674,6 +1679,7 @@ function app() {
       date: '', time: '09:00', duration: '60', status: 'confirmed', notes: '',
     },
     saving: false,
+    zernioConnecting: false,
     restartOnSave: true,
     // True only when the SERVER has a persisted complete config.
     // Distinct from isSetupDone, which tracks the in-memory form.
@@ -1837,7 +1843,7 @@ function app() {
         email:      ['EMAIL_ADDRESS','EMAIL_PASSWORD','EMAIL_IMAP_HOST','EMAIL_SMTP_HOST'],
         mattermost: ['MATTERMOST_URL','MATTERMOST_TOKEN'],
         matrix:     ['MATRIX_HOMESERVER','MATRIX_ACCESS_TOKEN','MATRIX_USER_ID'],
-        whatsapp:   ['WHATSAPP_ENABLED'],
+        whatsapp:   ['WHATSAPP_ENABLED','WHATSAPP_PROVIDER','ZERNIO_API_KEY','ZERNIO_PROFILE_ID','ZERNIO_WHATSAPP_ACCOUNT_ID','ZERNIO_WHATSAPP_NUMBER'],
       };
       for (const k of keysMap[ch] || []) this.vars[k] = '';
     },
@@ -1845,6 +1851,21 @@ function app() {
     clearTool(t) {
       this.vars[t.key] = '';
       if (t.key === 'BROWSERBASE_API_KEY') this.vars.BROWSERBASE_PROJECT_ID = '';
+    },
+
+    async connectZernioWhatsApp() {
+      this.zernioConnecting = true;
+      try {
+        const save = await fetch('/setup/api/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vars: { ...this.vars }, _restart: false }) });
+        const saved = await save.json().catch(() => ({}));
+        if (!save.ok) { this.notify(saved.error || 'Could not save Zernio settings', false); return; }
+        const r = await fetch('/setup/api/zernio/whatsapp/start', { method: 'POST' });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !d.auth_url) { this.notify(d.error || 'Could not start Zernio connection', false); return; }
+        window.open(d.auth_url, '_blank');
+        this.notify('Zernio connection started', true);
+      } catch (e) { this.notify('Zernio connection failed: ' + e.message, false); }
+      finally { this.zernioConnecting = false; }
     },
 
     async startXaiOauth() {
@@ -2155,7 +2176,7 @@ function app() {
             email:      !!(this.vars.EMAIL_ADDRESS),
             mattermost: !!(this.vars.MATTERMOST_URL),
             matrix:     !!(this.vars.MATRIX_HOMESERVER),
-            whatsapp:   this.vars.WHATSAPP_ENABLED === 'true',
+            whatsapp:   this.vars.WHATSAPP_ENABLED === 'true' || !!this.vars.ZERNIO_WHATSAPP_ACCOUNT_ID,
           };
           // Detect active tools
           for (const t of this.tools) {
