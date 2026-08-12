@@ -400,6 +400,7 @@
     user-select: none;
   }
   .toggle-row:last-child { border-bottom: none; }
+  .toggle-row.whatsapp-toggle-row { border-bottom: none; }
   .toggle-label {
     font-family: var(--font-mono);
     font-size: 13px;
@@ -1169,7 +1170,7 @@
           </div>
 
           <!-- WhatsApp -->
-          <div class="toggle-row" style="border-bottom:none;" @click="channelsEnabled.whatsapp=!channelsEnabled.whatsapp; vars.WHATSAPP_ENABLED=channelsEnabled.whatsapp?'true':'false'; if(channelsEnabled.whatsapp) vars.WHATSAPP_PROVIDER='zernio'; else clearChannel('whatsapp')">
+          <div class="toggle-row whatsapp-toggle-row" @click="channelsEnabled.whatsapp=!channelsEnabled.whatsapp; vars.WHATSAPP_ENABLED=channelsEnabled.whatsapp?'true':'false'; if(channelsEnabled.whatsapp) vars.WHATSAPP_PROVIDER='zernio'; else clearChannel('whatsapp')">
             <input type="checkbox" :checked="channelsEnabled.whatsapp" @click.stop @change="channelsEnabled.whatsapp=$event.target.checked; vars.WHATSAPP_ENABLED=$event.target.checked?'true':'false'; if($event.target.checked) vars.WHATSAPP_PROVIDER='zernio'; else clearChannel('whatsapp')">
             <span class="toggle-icon">💬</span>
             <span class="toggle-label">WhatsApp</span>

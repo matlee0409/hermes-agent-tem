@@ -1711,7 +1711,7 @@ async def api_zernio_whatsapp_callback(request: Request):
 
     async with cfg_lock:
         data = read_env(ENV_FILE)
-        data["WHATSAPP_ENABLED"] = "true"
+        data["WHATSAPP_ENABLED"] = "false"
         data["WHATSAPP_PROVIDER"] = "zernio"
         data["ZERNIO_WHATSAPP_ACCOUNT_ID"] = request.query_params.get("accountId", "")
         data["ZERNIO_WHATSAPP_NUMBER"] = request.query_params.get("username", "")
