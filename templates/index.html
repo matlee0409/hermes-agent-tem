@@ -757,19 +757,6 @@
   <button class="sidebar-toggle" @click="sidebarOpen = !sidebarOpen" :title="sidebarOpen ? 'Close sidebar' : 'Open sidebar'">
     <span x-text="sidebarOpen ? '☰' : '☰'">☰</span>
   </button>
-  <div style="width:28px;height:28px;border-radius:7px;flex-shrink:0;margin-left:4px;background:linear-gradient(135deg,#6272ff,#9b8cff);display:grid;place-items:center;color:white;font-size:16px;">✦</div>
-  <div class="logo">bookings<span>/admin</span></div>
-  <div class="status-dot" :class="gw.state||'stopped'"></div>
-  <div id="status-label"><span x-text="gw.state==='running'?'agent online':'agent '+(gw.state||'offline')"></span></div>
-  <div class="header-spacer"></div>
-  <div class="header-branding">
-    <span>made with ♥ by</span>
-    <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/heimdall-light.svg" alt="Heimdall">
-    <a href="https://github.com/praveen-ks-2001" target="_blank" rel="noopener">Heimdall</a>
-  </div>
-  <div class="header-spacer"></div>
-  <button class="header-btn" @click="page='business'">Business settings</button>
-  <button class="header-btn" @click="restartGateway()">↺ Restart agent</button>
 </div>
 
 <!-- Layout -->
