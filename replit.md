@@ -8,17 +8,15 @@ A Python admin server (Starlette + Uvicorn) for a business owner's booking works
 PORT=5000 python server.py
 ```
 
-The server starts on port 5000. Log in with:
-- **Username**: `admin` (or `ADMIN_USERNAME` env var)
-- **Password**: auto-generated and printed to logs on first run (set `ADMIN_PASSWORD` env var to fix it)
+The server starts on port 5000. The owner dashboard opens directly without a password.
 
 ## Architecture
 
 ```
 Admin Server (Starlette/Uvicorn, port 5000)
-├── /setup         — Admin dashboard (auth-gated)
+├── /setup         — Owner booking dashboard (no password required)
 ├── /health        — Health check (public)
-├── /login /logout — Cookie auth
+├── /login /logout — Legacy compatibility routes
 └── /*             — Reverse proxy → hermes dashboard (port 9119)
 ```
 
@@ -37,7 +35,7 @@ Config is stored in `$HERMES_HOME/.env` and `$HERMES_HOME/config.yaml` (defaults
 | Customers | Customer rollups based on booking contact details |
 | Business settings | Business profile, hours, and instructions for the booking agent |
 
-Bookings are stored beside Hermes' existing data and are exposed through the protected `/setup/api/bookings` and `/setup/api/business` endpoints for a future Hermes booking skill or channel integration.
+Bookings are stored beside Hermes' existing data and are exposed through the open `/setup/api/bookings` and `/setup/api/business` endpoints for a future Hermes booking skill or channel integration.
 
 ## Agent Operations
 

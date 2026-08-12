@@ -660,21 +660,13 @@ def _safe_return_to(value: str) -> str:
 
 
 def guard(request: Request) -> Response | None:
-    """Enforce auth on protected routes.
+    """Allow the owner dashboard and its APIs without a password.
 
-    - HTML navigation: 302 to /login?returnTo=<path>
-    - API / XHR: 401 JSON (so the SPA's fetch() can surface it cleanly)
+    The dashboard is intentionally open for this deployment. Login handlers
+    remain available for compatibility with existing links, but protected
+    routes no longer redirect to the sign-in page or return 401 responses.
     """
-    if _is_authenticated(request):
-        return None
-    accept = request.headers.get("accept", "").lower()
-    wants_html = "text/html" in accept
-    if wants_html:
-        rt = request.url.path
-        if request.url.query:
-            rt = f"{rt}?{request.url.query}"
-        return RedirectResponse(f"/login?returnTo={_url_quote(rt)}", status_code=302)
-    return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    return None
 
 
 LOGIN_PAGE_HTML = """<!DOCTYPE html>
