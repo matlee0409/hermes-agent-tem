@@ -8,11 +8,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
-<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xterm-addon-search@0.13.0/lib/xterm-addon-search.js"></script>
 <style>
   :root {
     --bg:        #0d0f14;
@@ -697,137 +692,6 @@
   }
   .header-branding a:hover { color: var(--accent); }
 
-  /* ── Terminal panel ──────────────────────────────── */
-  #terminal-wrapper {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
-  }
-  #terminal-container {
-    flex: 1;
-    overflow: hidden;
-    background: #0a0c10;
-    padding: 6px 8px 8px;
-    display: flex;
-    flex-direction: column;
-  }
-  #terminal-container .xterm {
-    height: 100%;
-  }
-  #terminal-container .xterm-viewport {
-    overflow-y: hidden !important;
-  }
-  .term-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
-  .term-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; transition: background 0.2s, box-shadow 0.2s; }
-  .term-dot.connected    { background: var(--green); box-shadow: 0 0 6px var(--green); }
-  .term-dot.disconnected { background: var(--text-dim); }
-  .term-dot.reconnecting { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); animation: term-pulse 1s infinite; }
-  .term-dot.error        { background: var(--red); }
-  @keyframes term-pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
-  .term-status-label {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    min-width: 80px;
-  }
-  .term-divider {
-    width: 1px;
-    height: 16px;
-    background: var(--border);
-    flex-shrink: 0;
-    margin: 0 2px;
-  }
-  .term-font-ctrl {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .term-font-ctrl button {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 4px;
-    width: 22px;
-    height: 22px;
-    font-size: 14px;
-    line-height: 1;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    transition: background 0.15s;
-  }
-  .term-font-ctrl button:hover { background: var(--border); }
-  .term-font-size-label {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    min-width: 26px;
-    text-align: center;
-  }
-  /* Search bar overlay */
-  #term-search-bar {
-    position: absolute;
-    top: 8px;
-    right: 12px;
-    z-index: 20;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 5px 8px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-  }
-  #term-search-bar input {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    border-radius: 4px;
-    padding: 3px 8px;
-    outline: none;
-    width: 180px;
-  }
-  #term-search-bar input:focus { border-color: var(--accent); }
-  #term-search-bar .term-search-btn {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 4px;
-    padding: 3px 7px;
-    font-size: 11px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-  #term-search-bar .term-search-btn:hover { background: var(--border); }
-  #term-search-bar .term-search-close {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    font-size: 16px;
-    cursor: pointer;
-    line-height: 1;
-    padding: 0 2px;
-  }
-  #term-search-bar .term-search-close:hover { color: var(--text); }
-  .xterm-find-result { background: rgba(98,114,255,0.35) !important; }
-  .xterm-find-result-focused { background: rgba(98,114,255,0.7) !important; }
-
   /* ── Guide callout ───────────────────────────────── */
   .guide-callout {
     background: rgba(98,114,255,0.06);
@@ -893,19 +757,6 @@
   <button class="sidebar-toggle" @click="sidebarOpen = !sidebarOpen" :title="sidebarOpen ? 'Close sidebar' : 'Open sidebar'">
     <span x-text="sidebarOpen ? '☰' : '☰'">☰</span>
   </button>
-  <div style="width:28px;height:28px;border-radius:7px;flex-shrink:0;margin-left:4px;background:linear-gradient(135deg,#6272ff,#9b8cff);display:grid;place-items:center;color:white;font-size:16px;">✦</div>
-  <div class="logo">bookings<span>/admin</span></div>
-  <div class="status-dot" :class="gw.state||'stopped'"></div>
-  <div id="status-label"><span x-text="gw.state==='running'?'agent online':'agent '+(gw.state||'offline')"></span></div>
-  <div class="header-spacer"></div>
-  <div class="header-branding">
-    <span>made with ♥ by</span>
-    <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/heimdall-light.svg" alt="Heimdall">
-    <a href="https://github.com/praveen-ks-2001" target="_blank" rel="noopener">Heimdall</a>
-  </div>
-  <div class="header-spacer"></div>
-  <button class="header-btn" @click="page='business'">Business settings</button>
-  <button class="header-btn" @click="restartGateway()">↺ Restart agent</button>
 </div>
 
 <!-- Layout -->
@@ -930,11 +781,6 @@
     </div>
 
     <div class="nav-group-label" style="margin-top:8px">Agent operations</div>
-    <div class="nav-item highlight"
-         @click="window.location.href='/?force=1'"
-         title="Open the native Hermes dashboard">
-      <span class="nav-icon">✦</span><span>Open Hermes</span><span class="nav-arrow">→</span>
-    </div>
     <div class="nav-item"
          :class="{active: page==='status', locked: !isSetupDone}"
          @click="isSetupDone && (page='status')">
@@ -946,11 +792,9 @@
       <span class="nav-icon">≡</span>
       <span>Agent logs</span>
     </div>
-    <div class="nav-item"
-         :class="{active: page==='terminal'}"
-         @click="page='terminal'; $nextTick(()=>initTerminal())">
-      <span class="nav-icon">⌨</span>
-      <span>Terminal</span>
+    <div class="nav-item" :class="{active: page==='setup'}" @click="page='setup'">
+      <span class="nav-icon">＋</span>
+      <span>Agent connect</span>
     </div>
 
     <div class="nav-group-label" style="margin-top:8px">Access</div>
@@ -967,28 +811,8 @@
       <span class="nav-icon">☁</span>
       <span>Backup</span>
     </div>
-    <div class="nav-item" :class="{active: page==='update'}" @click="page='update'">
-      <span class="nav-icon">⬆</span>
-      <span>Update</span>
-      <span class="nav-badge" :class="{visible: updateInfo.update_available}" x-text="'●'" style="font-size:8px;"></span>
-    </div>
-
-    <div class="nav-group-label" style="margin-top:8px">Resources</div>
-    <div class="nav-item" :class="{active: page==='guide'}" @click="page='guide'">
-      <span class="nav-icon">📖</span>
-      <span>How to Setup</span>
-    </div>
-    <div class="nav-item" :class="{active: page==='templates'}" @click="page='templates'">
-      <span class="nav-icon">🚀</span>
-      <span>Other Templates</span>
-    </div>
 
     <div class="nav-divider" style="margin-top:auto;"></div>
-
-    <div class="nav-item danger" @click="resetConfig()">
-      <span class="nav-icon">⊘</span>
-      <span>Reset Config</span>
-    </div>
 
     <div class="nav-item" @click="window.location.href='/logout'">
       <span class="nav-icon">↪</span>
@@ -1003,8 +827,8 @@
     <!-- ── Setup panel ─────────────────────────────── -->
     <div class="panel" :class="{active: page==='setup'}">
       <div class="panel-header">
-        <div class="panel-title">Setup</div>
-        <div class="panel-subtitle">Configure your Hermes Agent</div>
+        <div class="panel-title">Agent connect</div>
+        <div class="panel-subtitle">Connect an AI provider and configure your Hermes Agent</div>
       </div>
       <div class="panel-body">
 
@@ -1066,9 +890,6 @@
 
         <!-- LLM Provider -->
         <div x-show="isSetupDone || setupChoice==='new'">
-        <div style="background:rgba(98,114,255,0.06);border:1px solid rgba(98,114,255,0.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--text-dim);">
-          New to Hermes? Head over to the <a href="#" @click.prevent="page='guide'" style="color:var(--accent2);text-decoration:none;font-weight:500;">How to Setup</a> section for a step-by-step guide on getting started.
-        </div>
 
         <div class="section-label">
           LLM Provider
@@ -1816,236 +1637,6 @@
       </div>
     </div>
 
-    <!-- ── Update panel ────────────────────────────── -->
-    <div class="panel" :class="{active: page==='update'}">
-      <div class="panel-header">
-        <div class="panel-title">Update</div>
-        <div class="panel-subtitle">Keep Hermes Agent up to date</div>
-      </div>
-      <div class="panel-body">
-
-        <div style="background:rgba(98,114,255,0.06);border:1px solid rgba(98,114,255,0.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--text-dim);line-height:1.55;">
-          This app runs Hermes Agent from a pinned, immutable build (<code>HERMES_REF</code>), not a
-          live checkout — so Hermes's own <code>hermes update</code> can't pull new code into it and
-          have that survive a redeploy. Bump the pinned version and redeploy to actually upgrade.
-        </div>
-
-        <div class="section-label">Version</div>
-        <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <div>
-              <div class="field-label" style="margin-bottom:4px;">Currently pinned</div>
-              <div style="font-size:15px;font-weight:500;" x-text="updateInfo.current || '(unknown)'"></div>
-            </div>
-            <button class="btn" @click="checkForUpdate()" :disabled="update.checking">
-              <span x-show="!update.checking">Check for Updates</span>
-              <span x-show="update.checking">Checking…</span>
-            </button>
-          </div>
-
-          <template x-if="updateInfo.error">
-            <p x-text="updateInfo.error" style="color:var(--red);margin:12px 0 0;font-size:12px;"></p>
-          </template>
-
-          <template x-if="updateInfo.latest && !updateInfo.update_available && !updateInfo.error">
-            <p style="color:var(--green);margin:12px 0 0;font-size:13px;">✓ You're on the latest release.</p>
-          </template>
-
-          <template x-if="updateInfo.update_available">
-            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-              <div style="font-size:13px;margin-bottom:10px;">
-                A newer release is available: <strong x-text="updateInfo.latest"></strong>
-                (<a :href="'https://github.com/NousResearch/hermes-agent/releases/tag/'+updateInfo.latest" target="_blank" style="color:var(--accent2);">release notes</a>)
-              </div>
-              <p class="hint" style="line-height:1.55;margin:0 0 10px;">
-                To upgrade: set <code>HERMES_REF=<span x-text="updateInfo.latest"></span></code> as a build
-                arg / env var for this project (or bump the <code>ARG HERMES_REF</code> default in the
-                <code>Dockerfile</code>), then redeploy. When jumping releases, re-check the Dockerfile's
-                install extras against upstream's <code>pyproject.toml</code>.
-              </p>
-              <button class="btn sm" @click="copyText('HERMES_REF='+updateInfo.latest)">Copy HERMES_REF value</button>
-            </div>
-          </template>
-        </div>
-
-        <div class="section-label" style="margin-top:20px;">Run <code>hermes update</code></div>
-        <div class="card">
-          <p class="hint" style="margin:0 0 12px;line-height:1.55;">
-            Runs Hermes's own updater directly against this install. On a container build like this one,
-            Hermes is expected to correctly detect that and refuse — the exact message is shown below so
-            you can see it did the right thing instead of silently doing nothing.
-          </p>
-          <button class="btn" @click="runHermesUpdate()" :disabled="update.running">
-            <span x-show="!update.running">Run hermes update</span>
-            <span x-show="update.running">Running…</span>
-          </button>
-          <template x-if="update.output">
-            <pre style="margin-top:12px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:12px;white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto;" x-text="update.output"></pre>
-          </template>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- ── Guide panel ─────────────────────────────── -->
-    <div class="panel" :class="{active: page==='guide'}">
-      <div class="panel-header">
-        <div class="panel-title">How to Setup</div>
-        <div class="panel-subtitle">Get your Hermes Agent running in minutes</div>
-      </div>
-      <div class="panel-body">
-
-        <!-- Part 1: LLM API Key -->
-        <div class="guide-section">
-          <div class="guide-section-title">
-            <span class="guide-num">1</span>
-            Get a Free LLM API Key
-          </div>
-          <ol class="step-list">
-            <li>
-              Go to <a href="https://openrouter.ai" target="_blank" rel="noopener">openrouter.ai</a> and create a free account.
-            </li>
-            <li>
-              Once logged in, go to <a href="https://openrouter.ai/workspaces/default/keys" target="_blank" rel="noopener">openrouter.ai/workspaces/default/keys</a> and click <strong>Create Key</strong>.
-              <span class="step-note">Copy the generated API key — it starts with <code>sk-or-...</code></span>
-            </li>
-            <li>
-              OpenRouter offers many models, including free ones. To get started, you can pick a free model such as:
-              <span class="step-note"><code>nvidia/llama-3.3-nemotron-super-49b-v1:free</code></span>
-              <span class="step-note">Browse all available models at <a href="https://openrouter.ai/models" target="_blank" rel="noopener">openrouter.ai/models</a> — filter by "Free" to see no-cost options.</span>
-            </li>
-            <li>
-              Head over to the <strong>Setup</strong> page (left sidebar), select <strong>OpenRouter</strong> as provider, paste your API key, and enter the model name.
-              <span class="step-note">
-                Want a different provider (Anthropic, DeepSeek, Groq, Cerebras, Mistral, etc.)? Open the
-                <a href="/?force=1" style="color:var(--accent2);">Hermes Dashboard</a> from the sidebar — the
-                <strong>Keys</strong> tab lists every provider Hermes supports out of the box, plus
-                skills, toolsets, and analytics you can configure from there.
-              </span>
-            </li>
-          </ol>
-        </div>
-
-        <!-- Part 2: Telegram -->
-        <div class="guide-section">
-          <div class="guide-section-title">
-            <span class="guide-num">2</span>
-            Connect a Messaging Platform
-          </div>
-          <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">
-            Hermes Agent works through messaging platforms. You need to connect at least one. The easiest to set up is <strong style="color:var(--text);">Telegram</strong>.
-          </p>
-          <ol class="step-list">
-            <li>
-              Open Telegram and search for <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>.
-            </li>
-            <li>
-              Send <code>/newbot</code> and follow the prompts — give your bot a name and username.
-            </li>
-            <li>
-              BotFather will reply with a <strong>Bot Token</strong> — it looks like <code>1234567890:ABCdefGhIjKlMnOpQrStUvWxYz</code>.
-              <span class="step-note">Copy this token.</span>
-            </li>
-            <li>
-              Go to the <strong>Setup</strong> page, enable <strong>Telegram</strong> under Messaging Channels, and paste the Bot Token.
-            </li>
-            <li>
-              For <strong>Allowed User IDs</strong>, if you're just starting out, enter <code>*</code> to allow all users.
-              <span class="step-note">You can restrict access later by specifying individual Telegram user IDs.</span>
-            </li>
-            <li>
-              Click <strong>Save & Start</strong> on the bottom right — your Hermes Agent is now live!
-            </li>
-          </ol>
-        </div>
-
-        <!-- Issue callout -->
-        <div class="guide-callout">
-          Facing an issue or something not working as expected? <a href="https://github.com/praveen-ks-2001/hermes-agent-template/issues" target="_blank" rel="noopener">Create a GitHub issue</a> and we'll help you out.
-        </div>
-
-      </div>
-    </div>
-
-    <!-- ── Other Templates panel ───────────────────── -->
-    <div class="panel" :class="{active: page==='templates'}">
-      <div class="panel-header">
-        <div class="panel-title">Other Templates</div>
-        <div class="panel-subtitle">Deploy more AI agents on Railway</div>
-      </div>
-      <div class="panel-body">
-        <p style="font-size:13px;color:var(--text-dim);margin-bottom:18px;">
-          Explore other AI agent templates you can deploy on Railway with one click.
-        </p>
-
-        <div class="template-grid">
-
-          <div class="template-card">
-            <div class="template-card-name">OpenClaw</div>
-            <div class="template-card-desc">
-              Self-hosted OpenClaw agent — deploy and manage your own OpenClaw instance on Railway.
-            </div>
-            <a class="btn primary" href="https://railway.com/deploy/self-host-openclaw?referralCode=QXdhdr&utm_medium=integration&utm_source=template&utm_campaign=generic" target="_blank" rel="noopener">
-              Deploy on Railway
-            </a>
-          </div>
-
-          <div class="template-card">
-            <div class="template-card-name">Paperclip</div>
-            <div class="template-card-desc">
-              Paperclip AI Company — deploy your own Paperclip AI agent instance on Railway.
-            </div>
-            <a class="btn primary" href="https://railway.com/deploy/paperclip-ai-company?referralCode=QXdhdr&utm_medium=integration&utm_source=template&utm_campaign=generic" target="_blank" rel="noopener">
-              Deploy on Railway
-            </a>
-          </div>
-
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Terminal panel ─────────────────────────── -->
-    <div class="panel" :class="{active: page==='terminal'}" style="overflow:hidden;">
-      <div class="panel-header" style="padding:12px 16px;">
-        <div class="panel-title">⌨ Terminal</div>
-        <div class="panel-subtitle">Interactive shell — run hermes commands directly</div>
-      </div>
-      <div id="terminal-wrapper">
-        <!-- Toolbar -->
-        <div class="term-toolbar">
-          <div class="term-dot" :class="termState"></div>
-          <span class="term-status-label" x-text="termState==='connected'?'connected':termState==='reconnecting'?'reconnecting…':termState==='error'?'error':'disconnected'"></span>
-          <div class="term-divider"></div>
-          <button class="btn sm" @click="reconnectTerminal()" title="Reconnect shell">↺ Reconnect</button>
-          <button class="btn sm" @click="clearTerminal()" title="Clear screen">⌫ Clear</button>
-          <div class="term-divider"></div>
-          <div class="term-font-ctrl" title="Font size">
-            <button @click="termFontDec()" title="Decrease font size">−</button>
-            <span class="term-font-size-label" x-text="termFontSize+'px'"></span>
-            <button @click="termFontInc()" title="Increase font size">+</button>
-          </div>
-          <div class="term-divider"></div>
-          <button class="btn sm" @click="toggleTermSearch()" title="Search (Ctrl+Shift+F)">⌕ Search</button>
-        </div>
-        <!-- Search bar (floats over terminal) -->
-        <div id="term-search-bar" x-show="termSearchOpen" x-cloak @keydown.escape.window="termSearchOpen && closeTermSearch()">
-          <input type="text" placeholder="Find…" x-model="termSearchQuery"
-                 @input="termSearchFind()" @keydown.enter="termSearchFind(false)"
-                 @keydown.shift.enter="termSearchFind(true)"
-                 x-ref="termSearchInput">
-          <button class="term-search-btn" @click="termSearchFind(true)" title="Previous (Shift+Enter)">↑</button>
-          <button class="term-search-btn" @click="termSearchFind(false)" title="Next (Enter)">↓</button>
-          <button class="term-search-close" @click="closeTermSearch()" title="Close">✕</button>
-        </div>
-        <div id="terminal-container" x-ref="termContainer"></div>
-      </div>
-    </div>
-
-  </div><!-- #main -->
-</div><!-- #layout -->
-
-<!-- Toast -->
-<div id="toast" x-ref="toast"></div>
 
 <script>
 function app() {
@@ -2121,19 +1712,6 @@ function app() {
     sidebarOpen: true,
     xai: { loading: false, userCode: '', verificationUri: '', status: 'none', error: '' },
 
-    // ── Terminal state ──────────────────────────────
-    termState: 'disconnected',   // 'disconnected' | 'reconnecting' | 'connected' | 'error'
-    termFontSize: 13,
-    termSearchOpen: false,
-    termSearchQuery: '',
-    _term: null,
-    _termFit: null,
-    _termSearch: null,
-    _termWs: null,
-    _termResizeObs: null,
-    _termInited: false,
-    _termReconnectTimer: null,
-    _termReconnectAttempt: 0,
 
     selectedProvider: '',
 
@@ -2674,208 +2252,6 @@ function app() {
       this.notify('Revoked', true); await this.loadPairing();
     },
 
-    // ── Terminal methods ────────────────────────────
-    initTerminal() {
-      // Only create the xterm instance once; reconnect WS on each visit.
-      const container = this.$refs.termContainer;
-      if (!container) return;
-
-      if (!this._termInited) {
-        this._termInited = true;
-        this._term = new Terminal({
-          fontFamily: '"IBM Plex Mono", Menlo, "Courier New", monospace',
-          fontSize: this.termFontSize,
-          lineHeight: 1.45,
-          letterSpacing: 0.3,
-          theme: {
-            background:   '#0a0c10',
-            foreground:   '#c9d1d9',
-            cursor:       '#6272ff',
-            cursorAccent: '#0a0c10',
-            selectionBackground: 'rgba(98,114,255,0.25)',
-            black:        '#0d1117',
-            red:          '#f85149',
-            green:        '#3fb950',
-            yellow:       '#d29922',
-            blue:         '#6272ff',
-            magenta:      '#bc8cff',
-            cyan:         '#39c5cf',
-            white:        '#b1bac4',
-            brightBlack:  '#6e7681',
-            brightRed:    '#ff7b72',
-            brightGreen:  '#56d364',
-            brightYellow: '#e3b341',
-            brightBlue:   '#79c0ff',
-            brightMagenta:'#d2a8ff',
-            brightCyan:   '#56d4dd',
-            brightWhite:  '#f0f6fc',
-          },
-          cursorBlink:      true,
-          cursorStyle:      'bar',
-          scrollback:       10000,
-          allowProposedApi: true,
-          copyOnSelect:     true,
-          scrollOnUserInput:true,
-          smoothScrollDuration: 80,
-        });
-
-        // Addons
-        this._termFit = new FitAddon.FitAddon();
-        this._term.loadAddon(this._termFit);
-
-        if (typeof WebLinksAddon !== 'undefined') {
-          this._term.loadAddon(new WebLinksAddon.WebLinksAddon());
-        }
-        if (typeof SearchAddon !== 'undefined') {
-          this._termSearch = new SearchAddon.SearchAddon();
-          this._term.loadAddon(this._termSearch);
-        }
-
-        this._term.open(container);
-        this._termFit.fit();
-
-        // Resize observer — refit when the panel is resized.
-        this._termResizeObs = new ResizeObserver(() => {
-          if (this.page !== 'terminal') return;
-          try { this._termFit.fit(); } catch {}
-          this._sendResize();
-        });
-        this._termResizeObs.observe(container);
-
-        // Keyboard → WS
-        // Filter out OSC sequences that xterm.js auto-generates as replies to
-        // terminal capability queries (e.g. \e]11;rgb:… background-color replies).
-        // Forwarding those to the PTY causes them to be echoed as visible text in
-        // the shell prompt.
-        this._term.onData((data) => {
-          if (data.startsWith('\x1b]') || data.startsWith('\x9d')) return;
-          if (this._termWs && this._termWs.readyState === WebSocket.OPEN) {
-            this._termWs.send(new TextEncoder().encode(data));
-          }
-        });
-
-        // Ctrl+Shift+F → open search
-        this._term.attachCustomKeyEventHandler((ev) => {
-          if (ev.ctrlKey && ev.shiftKey && ev.key === 'F') {
-            ev.preventDefault();
-            this.toggleTermSearch();
-            return false;
-          }
-          return true;
-        });
-
-      } else {
-        // Already inited — just refit in case size changed.
-        try { this._termFit.fit(); } catch {}
-      }
-
-      this._connectTerminalWs();
-    },
-
-    _connectTerminalWs() {
-      // Cancel any pending auto-reconnect
-      if (this._termReconnectTimer) { clearTimeout(this._termReconnectTimer); this._termReconnectTimer = null; }
-      if (this._termWs) {
-        try { this._termWs.close(); } catch {}
-        this._termWs = null;
-      }
-      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const ws = new WebSocket(`${proto}//${location.host}/setup/api/terminal/ws`);
-      ws.binaryType = 'arraybuffer';
-      this._termWs = ws;
-
-      ws.onopen = () => {
-        this.termState = 'connected';
-        this._termReconnectAttempt = 0;
-        this._sendResize();
-        if (this._term) this._term.focus();
-      };
-
-      ws.onclose = (ev) => {
-        if (this.termState === 'connected') {
-          // Only show the disconnect notice when we were actually connected
-          if (this._term) this._term.write('\r\n\x1b[33m⚠ Session ended\x1b[0m\r\n');
-        }
-        // Auto-reconnect with exponential backoff (max 5 attempts, cap 30 s)
-        if (this._termReconnectAttempt < 5 && ev.code !== 4401 /* auth failure */) {
-          const delay = Math.min(1000 * Math.pow(2, this._termReconnectAttempt), 30000);
-          this._termReconnectAttempt++;
-          this.termState = 'reconnecting';
-          if (this._term) this._term.write(`\x1b[33mReconnecting in ${Math.round(delay/1000)}s (attempt ${this._termReconnectAttempt}/5)…\x1b[0m\r\n`);
-          this._termReconnectTimer = setTimeout(() => this._connectTerminalWs(), delay);
-        } else {
-          this.termState = ev.code === 4401 ? 'error' : 'disconnected';
-          if (this._term && this._termReconnectAttempt >= 5)
-            this._term.write('\x1b[31mCould not reconnect — click ↺ Reconnect to try again.\x1b[0m\r\n');
-        }
-      };
-
-      ws.onerror = () => { this.termState = 'error'; };
-
-      ws.onmessage = (ev) => {
-        if (!this._term) return;
-        if (ev.data instanceof ArrayBuffer) {
-          this._term.write(new Uint8Array(ev.data));
-        } else {
-          this._term.write(ev.data);
-        }
-      };
-    },
-
-    reconnectTerminal() {
-      this._termReconnectAttempt = 0;
-      this.termState = 'disconnected';
-      if (this._term) this._term.clear();
-      this._connectTerminalWs();
-    },
-
-    clearTerminal() {
-      if (this._term) { this._term.clear(); this._term.focus(); }
-    },
-
-    termFontInc() {
-      if (this.termFontSize >= 24) return;
-      this.termFontSize++;
-      if (this._term) { this._term.options.fontSize = this.termFontSize; try { this._termFit.fit(); } catch {} this._sendResize(); }
-    },
-
-    termFontDec() {
-      if (this.termFontSize <= 8) return;
-      this.termFontSize--;
-      if (this._term) { this._term.options.fontSize = this.termFontSize; try { this._termFit.fit(); } catch {} this._sendResize(); }
-    },
-
-    toggleTermSearch() {
-      this.termSearchOpen = !this.termSearchOpen;
-      if (this.termSearchOpen) {
-        this.$nextTick(() => { if (this.$refs.termSearchInput) this.$refs.termSearchInput.focus(); });
-      } else {
-        if (this._termSearch) this._termSearch.clearDecorations();
-        if (this._term) this._term.focus();
-      }
-    },
-
-    closeTermSearch() {
-      this.termSearchOpen = false;
-      if (this._termSearch) this._termSearch.clearDecorations();
-      if (this._term) this._term.focus();
-    },
-
-    termSearchFind(backwards = false) {
-      if (!this._termSearch || !this.termSearchQuery) return;
-      const opts = { regex: false, wholeWord: false, caseSensitive: false, incremental: !backwards };
-      if (backwards) {
-        this._termSearch.findPrevious(this.termSearchQuery, opts);
-      } else {
-        this._termSearch.findNext(this.termSearchQuery, opts);
-      }
-    },
-
-    _sendResize() {
-      if (!this._termWs || this._termWs.readyState !== WebSocket.OPEN) return;
-      if (!this._term) return;
-      this._termWs.send(JSON.stringify({ type: 'resize', cols: this._term.cols, rows: this._term.rows }));
-    },
 
     fmtDate(ts) {
       if (!ts) return '—';
