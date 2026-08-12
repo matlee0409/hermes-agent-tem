@@ -792,6 +792,10 @@
       <span class="nav-icon">≡</span>
       <span>Agent logs</span>
     </div>
+    <div class="nav-item" :class="{active: page==='setup'}" @click="page='setup'">
+      <span class="nav-icon">＋</span>
+      <span>Agent connect</span>
+    </div>
 
     <div class="nav-group-label" style="margin-top:8px">Access</div>
     <div class="nav-item"
@@ -823,8 +827,8 @@
     <!-- ── Setup panel ─────────────────────────────── -->
     <div class="panel" :class="{active: page==='setup'}">
       <div class="panel-header">
-        <div class="panel-title">Setup</div>
-        <div class="panel-subtitle">Configure your Hermes Agent</div>
+        <div class="panel-title">Agent connect</div>
+        <div class="panel-subtitle">Connect an AI provider and configure your Hermes Agent</div>
       </div>
       <div class="panel-body">
 
