@@ -154,6 +154,7 @@ ENV_VARS = [
     ("ZERNIO_PROFILE_ID",        "Zernio profile ID",        "zernio_whatsapp", False),
     ("ZERNIO_WHATSAPP_ACCOUNT_ID", "Zernio WhatsApp account ID", "zernio_whatsapp", False),
     ("ZERNIO_WHATSAPP_NUMBER",  "Zernio WhatsApp number",   "zernio_whatsapp", False),
+    ("ZERNIO_WEBHOOK_SECRET",   "Zernio webhook secret",    "zernio_whatsapp", True),
     ("EMAIL_ADDRESS",            "Email Address",            "email",     False),
     ("EMAIL_PASSWORD",           "Email Password",           "email",     True),
     ("EMAIL_IMAP_HOST",          "IMAP Host",                "email",     False),
@@ -190,6 +191,9 @@ CHANNEL_MAP  = {
 ZERNIO_API_URL = "https://zernio.com/api"
 ZERNIO_CONNECT_TTL = 10 * 60
 _zernio_whatsapp_state: dict[str, str | float] | None = None
+_zernio_seen_events: deque[str] = deque(maxlen=2000)
+_zernio_agents: dict[str, object] = {}
+_zernio_agent_lock = asyncio.Lock()
 
 
 # ── .env helpers ──────────────────────────────────────────────────────────────
@@ -1666,6 +1670,93 @@ def get_http_client() -> httpx.AsyncClient:
     return _http_client
 
 
+# ── Zernio ↔ Hermes webhook bridge ───────────────────────────────────────────
+def _zernio_message_value(payload: dict, *keys: str) -> str:
+    for key in keys:
+        value = payload.get(key)
+        if value is not None and not isinstance(value, (dict, list)):
+            return str(value).strip()
+    return ""
+
+
+def _zernio_message_details(payload: dict) -> tuple[str, str, str, str]:
+    message = payload.get("message") if isinstance(payload.get("message"), dict) else payload
+    conversation = payload.get("conversation") if isinstance(payload.get("conversation"), dict) else {}
+    sender = payload.get("sender") if isinstance(payload.get("sender"), dict) else {}
+    conversation_id = (
+        _zernio_message_value(payload, "conversationId", "conversation_id")
+        or _zernio_message_value(conversation, "id", "conversationId")
+    )
+    message_id = _zernio_message_value(payload, "id", "messageId", "message_id") or _zernio_message_value(message, "id", "messageId")
+    text = (
+        _zernio_message_value(message, "text", "body", "content", "message")
+        or _zernio_message_value(payload, "text", "body", "content")
+    )
+    account_id = (
+        _zernio_message_value(payload, "accountId", "account_id")
+        or _zernio_message_value(message, "accountId", "account_id")
+        or _zernio_message_value(sender, "accountId", "account_id")
+    )
+    return conversation_id, message_id, text, account_id
+
+
+def _zernio_event_is_inbound(payload: dict) -> bool:
+    message = payload.get("message") if isinstance(payload.get("message"), dict) else {}
+    direction = str(payload.get("direction") or message.get("direction", "")).lower()
+    return direction not in {"outbound", "outgoing", "sent"}
+
+
+async def _hermes_zernio_reply(conversation_id: str, text: str) -> str:
+    async with _zernio_agent_lock:
+        agent = _zernio_agents.get(conversation_id)
+        if agent is None:
+            from run_agent import AIAgent
+            model = read_env(ENV_FILE).get("LLM_MODEL", "")
+            agent = AIAgent(model=model, quiet_mode=True)
+            _zernio_agents[conversation_id] = agent
+    return await asyncio.to_thread(agent.chat, text)
+
+
+async def api_zernio_webhook(request: Request) -> Response:
+    secret = read_env(ENV_FILE).get("ZERNIO_WEBHOOK_SECRET", "")
+    raw_body = await request.body()
+    signature = request.headers.get("X-Zernio-Signature", "") or request.headers.get("X-Late-Signature", "")
+    expected = _hmac.new(secret.encode(), raw_body, _hashlib.sha256).hexdigest() if secret else ""
+    if not secret or not signature or not _hmac.compare_digest(expected, signature):
+        return Response("Invalid signature", status_code=401)
+    try:
+        payload = json.loads(raw_body)
+    except (TypeError, ValueError):
+        return Response("Invalid JSON", status_code=400)
+    if not isinstance(payload, dict) or payload.get("event") != "message.received" or not _zernio_event_is_inbound(payload):
+        return JSONResponse({"ok": True, "ignored": True})
+
+    event_id = str(payload.get("id") or request.headers.get("X-Zernio-Event-Id", "")).strip()
+    if event_id and event_id in _zernio_seen_events:
+        return JSONResponse({"ok": True, "duplicate": True})
+    conversation_id, _, text, account_id = _zernio_message_details(payload)
+    configured_account = read_env(ENV_FILE).get("ZERNIO_WHATSAPP_ACCOUNT_ID", "")
+    if not conversation_id or not text or (configured_account and account_id and account_id != configured_account):
+        return JSONResponse({"ok": True, "ignored": True})
+
+    try:
+        reply = await _hermes_zernio_reply(conversation_id, text)
+        response = await get_http_client().post(
+            f"{ZERNIO_API_URL}/v1/inbox/conversations/{conversation_id}/messages",
+            headers={"Authorization": f"Bearer {read_env(ENV_FILE).get('ZERNIO_API_KEY', '')}"},
+            json={"accountId": configured_account, "message": str(reply)},
+        )
+        if response.status_code >= 300:
+            print(f"[zernio] reply failed ({response.status_code}): {response.text[:300]}", flush=True)
+            return JSONResponse({"error": "Zernio reply failed"}, status_code=502)
+        if event_id:
+            _zernio_seen_events.append(event_id)
+    except Exception as exc:
+        print(f"[zernio] bridge failed: {exc!r}", flush=True)
+        return JSONResponse({"error": "Hermes bridge failed"}, status_code=500)
+    return JSONResponse({"ok": True})
+
+
 # ── Route handlers ────────────────────────────────────────────────────────────
 async def page_index(request: Request):
     if err := guard(request): return err
@@ -2429,6 +2520,7 @@ routes = [
     Route("/setup/api/oauth/xai",               api_oauth_xai_delete, methods=["DELETE"]),
     Route("/setup/api/zernio/whatsapp/start",    api_zernio_whatsapp_start, methods=["POST"]),
     Route("/setup/zernio/whatsapp/callback",     api_zernio_whatsapp_callback, name="api_zernio_whatsapp_callback"),
+    Route("/webhooks/zernio",                    api_zernio_webhook, methods=["POST"]),
 
 
     # /setup/* typos return a real 404 — not a silent proxy fallthrough.
