@@ -155,6 +155,7 @@ ENV_VARS = [
     ("ZERNIO_WHATSAPP_ACCOUNT_ID", "Zernio WhatsApp account ID", "zernio_whatsapp", False),
     ("ZERNIO_WHATSAPP_NUMBER",  "Zernio WhatsApp number",   "zernio_whatsapp", False),
     ("ZERNIO_WEBHOOK_SECRET",   "Zernio webhook secret",    "zernio_whatsapp", True),
+    ("ZERNIO_WEBHOOK_ID",        "Zernio webhook ID",        "zernio_whatsapp", False),
     ("EMAIL_ADDRESS",            "Email Address",            "email",     False),
     ("EMAIL_PASSWORD",           "Email Password",           "email",     True),
     ("EMAIL_IMAP_HOST",          "IMAP Host",                "email",     False),
@@ -1817,9 +1818,50 @@ async def api_zernio_whatsapp_callback(request: Request):
         data["WHATSAPP_PROVIDER"] = "zernio"
         data["ZERNIO_WHATSAPP_ACCOUNT_ID"] = request.query_params.get("accountId", "")
         data["ZERNIO_WHATSAPP_NUMBER"] = request.query_params.get("username", "")
+        data["ZERNIO_WEBHOOK_SECRET"] = data.get("ZERNIO_WEBHOOK_SECRET") or secrets.token_urlsafe(32)
         write_env(ENV_FILE, data)
+
+    webhook_id = data.get("ZERNIO_WEBHOOK_ID", "")
+    webhook_url = f"{str(request.url_for('api_zernio_webhook')).replace('http://', 'https://')}"
+    if not webhook_id:
+        webhook_response = await get_http_client().post(
+            f"{ZERNIO_API_URL}/v1/webhooks/settings",
+            headers={
+                "Authorization": f"Bearer {data.get('ZERNIO_API_KEY', '')}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "name": "Hermes Agent WhatsApp",
+                "url": webhook_url,
+                "events": ["message.received"],
+                "secret": data["ZERNIO_WEBHOOK_SECRET"],
+                "isActive": True,
+            },
+        )
+        if webhook_response.status_code >= 300:
+            print(f"[zernio] webhook registration failed ({webhook_response.status_code}): {webhook_response.text[:300]}", flush=True)
+            _zernio_whatsapp_state = None
+            return HTMLResponse("<p>WhatsApp connected, but automatic webhook setup failed. Check the Zernio API key permissions and try again.</p>", status_code=502)
+        try:
+            webhook_data = webhook_response.json()
+            webhook_record = webhook_data.get("webhook") if isinstance(webhook_data.get("webhook"), dict) else {}
+            webhook_id = str(
+                webhook_data.get("id")
+                or webhook_data.get("webhookId")
+                or webhook_record.get("id")
+                or "registered"
+            )
+        except (TypeError, ValueError):
+            webhook_id = ""
+        if webhook_id:
+            async with cfg_lock:
+                data = read_env(ENV_FILE)
+                data["ZERNIO_WEBHOOK_ID"] = webhook_id
+                write_env(ENV_FILE, data)
+
     _zernio_whatsapp_state = None
-    return HTMLResponse("<p>WhatsApp is connected in Zernio. You can close this window and return to setup.</p>")
+    return HTMLResponse("""<p>WhatsApp is connected and the Hermes webhook is active. You can close this window and return to setup.</p>
+<script>if (window.opener) { window.opener.location.reload(); }</script>""")
 
 
 async def api_config_get(request: Request):
@@ -2520,7 +2562,7 @@ routes = [
     Route("/setup/api/oauth/xai",               api_oauth_xai_delete, methods=["DELETE"]),
     Route("/setup/api/zernio/whatsapp/start",    api_zernio_whatsapp_start, methods=["POST"]),
     Route("/setup/zernio/whatsapp/callback",     api_zernio_whatsapp_callback, name="api_zernio_whatsapp_callback"),
-    Route("/webhooks/zernio",                    api_zernio_webhook, methods=["POST"]),
+    Route("/webhooks/zernio",                    api_zernio_webhook, methods=["POST"], name="api_zernio_webhook"),
 
 
     # /setup/* typos return a real 404 — not a silent proxy fallthrough.

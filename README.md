@@ -72,13 +72,13 @@ All other configuration (LLM provider, model, channels, tools) is managed throug
 
 ### Zernio WhatsApp bridge
 
-After connecting the WhatsApp account in Zernio, create a Zernio webhook for the `message.received` event and point it to:
+After connecting the WhatsApp account in Zernio, the setup callback automatically creates a Zernio webhook for the `message.received` event at:
 
 ```text
 https://YOUR-RAILWAY-DOMAIN/webhooks/zernio
 ```
 
-Set the webhook's HMAC secret as the Railway variable `ZERNIO_WEBHOOK_SECRET`. The bridge verifies `X-Zernio-Signature`, keeps separate Hermes conversation histories, and replies through Zernio's inbox API. Set `ZERNIO_WHATSAPP_ACCOUNT_ID` to the connected Zernio account ID and keep `WHATSAPP_ENABLED=false`; Zernio is handled by this webhook bridge, not Hermes' native WhatsApp adapter.
+The bridge generates and stores its HMAC secret, verifies `X-Zernio-Signature`, keeps separate Hermes conversation histories, and replies through Zernio's inbox API. It keeps `WHATSAPP_ENABLED=false`; Zernio is handled by this webhook bridge, not Hermes' native WhatsApp adapter.
 
 ## Supported Providers
 
